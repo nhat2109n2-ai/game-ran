@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rắn Săn Mồi - Đăng Nhập & Bảng Điểm</title>
+    <!-- Tailwind CSS cho giao diện hiện đại -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font chữ Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+        }
+        canvas {
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Container chính căn giữa -->
+    <div class="w-full max-w-md bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-3xl shadow-2xl p-6 flex flex-col items-center">
+        
+        <!-- Tiêu đề game -->
+        <h1 class="text-3xl font-extrabold bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent mb-2 tracking-wide text-center">
+            🐍 RẮN SĂN MỒI ARCADE
+        </h1>
+
+        <!-- Phần thông tin tài khoản người chơi đã đăng nhập -->
+        <div id="authSection" class="w-full mb-4 bg-slate-950/60 border border-slate-800 rounded-2xl p-3 flex items-center justify-between shadow-inner">
+            <div class="flex items-center gap-2.5 overflow-hidden">
+                <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-xs">
+                    👤
+                </div>
+                <div class="flex flex-col truncate">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Tài khoản</span>
+                    <span id="playerNameDisplay" class="text-emerald-400 font-bold text-sm truncate max-w-[140px]">Chưa đăng nhập</span>
+                </div>
+            </div>
+            <button id="logoutBtn" class="text-xs bg-slate-800 hover:bg-slate-700 text-rose-400 px-3 py-1.5 rounded-xl transition-colors font-semibold border border-slate-700">
+                Đăng xuất
+            </button>
+        </div>
+
+        <!-- Bảng điểm (Score & High Score) -->
+        <div class="grid grid-cols-2 gap-4 w-full mb-5">
+            <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-3 text-center shadow-inner">
+                <span class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Điểm số</span>
+                <span id="score" class="text-2xl font-extrabold text-emerald-400">0</span>
+            </div>
+            <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-3 text-center shadow-inner">
+                <span class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Cao nhất</span>
+                <span id="highScore" class="text-2xl font-extrabold text-amber-400">0</span>
+            </div>
+        </div>
+
+        <!-- Khung Canvas trò chơi -->
+        <div class="relative w-full aspect-square flex justify-center items-center bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800">
+            <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- Màn hình trạng thái (Bắt đầu / Tạm dừng / Game Over) -->
+            <div id="overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center transition-all duration-300 z-20">
+                <h2 id="overlayTitle" class="text-2xl font-extrabold text-white mb-2">Sẵn sàng chưa?</h2>
+                <p id="overlayDesc" class="text-sm text-slate-300 mb-6 max-w-[260px]">Sử dụng phím mũi tên, WASD hoặc các nút ảo để điều khiển rắn ăn mồi.</p>
+                <button id="actionBtn" class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 transform hover:scale-105 transition-all duration-200">
+                    Bắt đầu chơi
+                </button>
+            </div>
+        </div>
+
+        <!-- Các nút điều khiển trạng thái game & Tải bảng điểm .txt -->
+        <div class="flex items-center justify-center gap-2.5 w-full mt-5">
+            <button id="startPauseBtn" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl shadow transition-colors flex items-center justify-center gap-1.5 text-xs border border-slate-700">
+                <span>⏸️</span> Tạm dừng
+            </button>
+            <button id="restartBtn" class="py-2.5 px-3 bg-rose-600/80 hover:bg-rose-600 text-white font-semibold rounded-xl shadow transition-colors flex items-center justify-center gap-1.5 text-xs">
+                <span>🔄</span> Chơi lại
+            </button>
+            <button id="downloadScoreBtn" class="py-2.5 px-3 bg-cyan-600/80 hover:bg-cyan-600 text-white font-semibold rounded-xl shadow transition-colors flex items-center justify-center gap-1.5 text-xs" title="Tải xuống lịch sử đấu .txt">
+                <span>📥</span> Lưu .txt
+            </button>
+        </div>
+
+        <!-- Phím điều khiển ảo cho điện thoại / cảm ứng -->
+        <div class="grid grid-cols-3 gap-2 w-full max-w-[220px] mt-5 md:hidden">
+            <div></div>
+            <button data-dir="UP" class="control-btn bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 text-white font-bold p-4 rounded-xl shadow border border-slate-700 flex items-center justify-center text-lg">⬆️</button>
+            <div></div>
+            <button data-dir="LEFT" class="control-btn bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 text-white font-bold p-4 rounded-xl shadow border border-slate-700 flex items-center justify-center text-lg">⬅️</button>
+            <button data-dir="DOWN" class="control-btn bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 text-white font-bold p-4 rounded-xl shadow border border-slate-700 flex items-center justify-center text-lg">⬇️</button>
+            <button data-dir="RIGHT" class="control-btn bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 text-white font-bold p-4 rounded-xl shadow border border-slate-700 flex items-center justify-center text-lg">➡️</button>
+        </div>
+
+    </div>
+
+    <!-- Modal Đăng nhập / Đăng ký tài khoản (Có Mật Khẩu) -->
+    <div id="authModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-sm shadow-2xl flex flex-col items-center">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xl font-bold mb-3">
+                🔐
+            </div>
+            <h3 id="authModalTitle" class="text-xl font-extrabold text-white mb-1">Đăng Nhập / Đăng Ký</h3>
+            <p id="authModalDesc" class="text-xs text-slate-400 mb-5 text-center">Nhập tài khoản và mật khẩu của bạn. Hệ thống sẽ tự động tạo tài khoản nếu chưa tồn tại.</p>
+            
+            <div class="w-full flex flex-col gap-3.5 mb-5">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">Tên tài khoản</label>
+                    <input type="text" id="usernameInput" placeholder="Ví dụ: hoangnam123" maxlength="20" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">Mật khẩu</label>
+                    <input type="password" id="passwordInput" placeholder="Nhập mật khẩu của bạn..." maxlength="30" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
+                </div>
+                <div id="authError" class="text-rose-400 text-xs hidden font-medium text-center bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg"></div>
+            </div>
+
+            <button id="submitAuthBtn" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 transition-all duration-200 text-sm">
+                Xác Nhận & Bắt Đầu
+            </button>
+        </div>
+    </div>
+
+    <!-- Thông báo tùy chỉnh (Custom Alert Modal thay cho alert()) -->
+    <div id="alertModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-xs shadow-2xl flex flex-col items-center text-center">
+            <h4 id="alertTitle" class="text-lg font-bold text-white mb-2">Thông báo</h4>
+            <p id="alertMessage" class="text-sm text-slate-300 mb-5">Nội dung thông báo...</p>
+            <button id="alertCloseBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-colors">
+                Đồng ý
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript xử lý Game, Đăng Nhập, Mật Khẩu và Xuất Tệp .txt -->
+    <script>
+        // Các biến DOM
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const highScoreEl = document.getElementById('highScore');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayDesc = document.getElementById('overlayDesc');
+        const actionBtn = document.getElementById('actionBtn');
+        const startPauseBtn = document.getElementById('startPauseBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const downloadScoreBtn = document.getElementById('downloadScoreBtn');
+        const playerNameDisplay = document.getElementById('playerNameDisplay');
+        const logoutBtn = document.getElementById('logoutBtn');
+        
+        const authModal = document.getElementById('authModal');
+        const usernameInput = document.getElementById('usernameInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const submitAuthBtn = document.getElementById('submitAuthBtn');
+        const authError = document.getElementById('authError');
+
+        const alertModal = document.getElementById('alertModal');
+        const alertTitle = document.getElementById('alertTitle');
+        const alertMessage = document.getElementById('alertMessage');
+        const alertCloseBtn = document.getElementById('alertCloseBtn');
+
+        function showAlert(title, message) {
+            alertTitle.textContent = title;
+            alertMessage.textContent = message;
+            alertModal.classList.remove('hidden');
+        }
+        alertCloseBtn.addEventListener('click', () => alertModal.classList.add('hidden'));
+
+        // Cơ sở dữ liệu tài khoản và điểm số lưu trữ trên localStorage
+        let accounts = JSON.parse(localStorage.getItem('snakeAccounts') || '{}');
+        let currentUsername = localStorage.getItem('snakeActiveUser') || '';
+        let matchHistory = JSON.parse(localStorage.getItem('snakeMatchHistory') || '[]');
+
+        function checkAuthentication() {
+            if (!currentUsername || !accounts[currentUsername]) {
+                authModal.classList.remove('hidden');
+            } else {
+                playerNameDisplay.textContent = currentUsername;
+                loadHighScore();
+            }
+        }
+
+        function loadHighScore() {
+            if (currentUsername && accounts[currentUsername]) {
+                highScoreEl.textContent = accounts[currentUsername].highScore || 0;
+            } else {
+                highScoreEl.textContent = 0;
+            }
+        }
+
+        // Xử lý sự kiện đăng nhập / đăng ký
+        submitAuthBtn.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!username || !password) {
+                authError.textContent = 'Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!';
+                authError.classList.remove('hidden');
+                return;
+            }
+
+            if (username.length < 3) {
+                authError.textContent = 'Tên tài khoản phải có ít nhất 3 ký tự!';
+                authError.classList.remove('hidden');
+                return;
+            }
+
+            // Nếu tài khoản đã tồn tại, kiểm tra mật khẩu
+            if (accounts[username]) {
+                if (accounts[username].password !== password) {
+                    authError.textContent = 'Mật khẩu không chính xác cho tài khoản này!';
+                    authError.classList.remove('hidden');
+                    return;
+                }
+            } else {
+                // Tạo tài khoản mới tự động
+                accounts[username] = {
+                    password: password,
+                    highScore: 0,
+                    createdAt: new Date().toLocaleString()
+                };
+                localStorage.setItem('snakeAccounts', JSON.stringify(accounts));
+            }
+
+            currentUsername = username;
+            localStorage.setItem('snakeActiveUser', currentUsername);
+            playerNameDisplay.textContent = currentUsername;
+            authModal.classList.add('hidden');
+            authError.classList.add('hidden');
+            usernameInput.value = '';
+            passwordInput.value = '';
+            loadHighScore();
+            initGame();
+            draw();
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            if (isRunning) togglePause();
+            currentUsername = '';
+            localStorage.removeItem('snakeActiveUser');
+            playerNameDisplay.textContent = 'Chưa đăng nhập';
+            highScoreEl.textContent = '0';
+            authModal.classList.remove('hidden');
+        });
+
+        // Kiểm tra ngay khi tải trang
+        checkAuthentication();
+
+        // Cấu hình game Snake
+        let tileCount = 20;
+        function resizeCanvas() {
+            const containerWidth = canvas.parentElement.clientWidth;
+            canvas.width = containerWidth;
+            canvas.height = containerWidth;
+            tileCount = 20;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let snake = [];
+        let food = { x: 0, y: 0 };
+        let dx = 1;
+        let dy = 0;
+        let nextDx = 1;
+        let nextDy = 0;
+        let score = 0;
+        let gameInterval = null;
+        let gameSpeed = 120;
+        let isRunning = false;
+        let isPaused = false;
+        let particles = [];
+
+        // Web Audio API Sound Effects
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'eat') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.12);
+                gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.12);
+            } else if (type === 'over') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(70, audioCtx.currentTime + 0.45);
+                gainNode.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.45);
+            }
+        }
+
+        function initGame() {
+            snake = [
+                { x: 10, y: 10 },
+                { x: 9, y: 10 },
+                { x: 8, y: 10 }
+            ];
+            dx = 1;
+            dy = 0;
+            nextDx = 1;
+            nextDy = 0;
+            score = 0;
+            scoreEl.textContent = score;
+            gameSpeed = 120;
+            particles = [];
+            spawnFood();
+        }
+
+        function spawnFood() {
+            let valid = false;
+            while (!valid) {
+                food.x = Math.floor(Math.random() * tileCount);
+                food.y = Math.floor(Math.random() * tileCount);
+                valid = !snake.some(segment => segment.x === food.x && segment.y === food.y);
+            }
+        }
+
+        function createParticles(x, y, tileSize) {
+            const px = (x + 0.5) * tileSize;
+            const py = (y + 0.5) * tileSize;
+            for (let i = 0; i < 14; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 3.5 + 1;
+                particles.push({
+                    x: px, y: py,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    alpha: 1,
+                    color: '#34d399'
+                });
+            }
+        }
+
+        function startGame() {
+            if (!currentUsername || !accounts[currentUsername]) {
+                authModal.classList.remove('hidden');
+                return;
+            }
+            initGame();
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => overlay.style.display = 'none', 300);
+            isRunning = true;
+            isPaused = false;
+            startPauseBtn.innerHTML = '<span>⏸️</span> Tạm dừng';
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, gameSpeed);
+        }
+
+        function togglePause() {
+            if (!isRunning) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                clearInterval(gameInterval);
+                overlay.style.display = 'flex';
+                setTimeout(() => overlay.classList.remove('opacity-0', 'pointer-events-none'), 10);
+                overlayTitle.textContent = 'Trò chơi đang tạm dừng';
+                overlayDesc.textContent = 'Nhấn tiếp tục để chơi tiếp.';
+                actionBtn.textContent = 'Tiếp tục';
+                startPauseBtn.innerHTML = '<span>▶️</span> Tiếp tục';
+            } else {
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => overlay.style.display = 'none', 300);
+                gameInterval = setInterval(gameLoop, gameSpeed);
+                startPauseBtn.innerHTML = '<span>⏸️</span> Tạm dừng';
+            }
+        }
+
+        function gameOver() {
+            isRunning = false;
+            clearInterval(gameInterval);
+            playSound('over');
+
+            // Cập nhật điểm cao cá nhân
+            if (accounts[currentUsername]) {
+                if (score > accounts[currentUsername].highScore) {
+                    accounts[currentUsername].highScore = score;
+                    localStorage.setItem('snakeAccounts', JSON.stringify(accounts));
+                    loadHighScore();
+                }
+            }
+
+            // Lưu lịch sử trận đấu
+            const matchRecord = {
+                username: currentUsername,
+                score: score,
+                timestamp: new Date().toLocaleString()
+            };
+            matchHistory.push(matchRecord);
+            localStorage.setItem('snakeMatchHistory', JSON.stringify(matchHistory));
+
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.remove('opacity-0', 'pointer-events-none'), 10);
+            overlayTitle.textContent = '💥 Game Over!';
+            overlayDesc.textContent = `${currentUsername}, điểm số đạt được: ${score}. Thử lại chứ?`;
+            actionBtn.textContent = 'Chơi lại';
+        }
+
+        // Tải xuống file .txt lịch sử điểm số
+        function downloadScoreTextFile() {
+            if (matchHistory.length === 0) {
+                showAlert('Thông báo', 'Chưa có lịch sử ván chơi nào được ghi nhận!');
+                return;
+            }
+
+            let fileContent = "========================================\n";
+            fileContent += "   LICH SU DIEM SO - RAN SAN MOI ARCADE  \n";
+            fileContent += "========================================\n\n";
+
+            matchHistory.forEach((item, idx) => {
+                fileContent += `${idx + 1}. Tai khoan: ${item.username} | Diem: ${item.score} | Thoi gian: ${item.timestamp}\n`;
+            });
+
+            fileContent += "\n----------------------------------------\n";
+            fileContent += `Tai khoan hien tai: ${currentUsername || 'Khong ro'}\n`;
+
+            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `snake_history_${currentUsername || 'player'}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        downloadScoreBtn.addEventListener('click', downloadScoreTextFile);
+
+        function gameLoop() {
+            dx = nextDx;
+            dy = nextDy;
+
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Kiểm tra va chạm biên hoặc thân rắn
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            snake.unshift(head);
+
+            const tileSize = canvas.width / tileCount;
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                scoreEl.textContent = score;
+                playSound('eat');
+                createParticles(food.x, food.y, tileSize);
+                spawnFood();
+
+                if (gameSpeed > 60) {
+                    gameSpeed -= 2;
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(gameLoop, gameSpeed);
+                }
+            } else {
+                snake.pop();
+            }
+
+            draw();
+        }
+
+        function draw() {
+            const tileSize = canvas.width / tileCount;
+
+            // Xóa khung nền canvas
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Vẽ lưới mờ
+            ctx.strokeStyle = '#090d16';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * tileSize, 0);
+                ctx.lineTo(i * tileSize, canvas.height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i * tileSize);
+                ctx.lineTo(canvas.width, i * tileSize);
+                ctx.stroke();
+            }
+
+            // Vẽ mồi
+            ctx.fillStyle = '#f43f5e';
+            ctx.shadowColor = '#f43f5e';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc((food.x + 0.5) * tileSize, (food.y + 0.5) * tileSize, tileSize * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Vẽ thân và đầu rắn
+            snake.forEach((segment, index) => {
+                const gradient = ctx.createLinearGradient(
+                    segment.x * tileSize, segment.y * tileSize,
+                    (segment.x + 1) * tileSize, (segment.y + 1) * tileSize
+                );
+                if (index === 0) {
+                    gradient.addColorStop(0, '#34d399');
+                    gradient.addColorStop(1, '#059669');
+                } else {
+                    gradient.addColorStop(0, '#10b981');
+                    gradient.addColorStop(1, '#047857');
+                }
+                ctx.fillStyle = gradient;
+                
+                const padding = 2;
+                ctx.beginPath();
+                ctx.roundRect(segment.x * tileSize + padding, segment.y * tileSize + padding, tileSize - padding * 2, tileSize - padding * 2, 6);
+                ctx.fill();
+
+                // Mắt rắn cho đầu
+                if (index === 0) {
+                    ctx.fillStyle = '#020617';
+                    const eyeSize = tileSize * 0.16;
+                    let ex1 = (segment.x + 0.5) * tileSize;
+                    let ey1 = (segment.y + 0.5) * tileSize;
+                    let ex2 = ex1, ey2 = ey1;
+
+                    if (dx === 1) { ex1 += tileSize*0.2; ey1 -= tileSize*0.24; ex2 += tileSize*0.2; ey2 += tileSize*0.24; }
+                    else if (dx === -1) { ex1 -= tileSize*0.2; ey1 -= tileSize*0.24; ex2 -= tileSize*0.2; ey2 += tileSize*0.24; }
+                    else if (dy === 1) { ex1 -= tileSize*0.24; ey1 += tileSize*0.2; ex2 += tileSize*0.24; ey2 += tileSize*0.2; }
+                    else if (dy === -1) { ex1 -= tileSize*0.24; ey1 -= tileSize*0.2; ex2 += tileSize*0.24; ey2 -= tileSize*0.2; }
+
+                    ctx.beginPath();
+                    ctx.arc(ex1, ey1, eyeSize, 0, Math.PI * 2);
+                    ctx.arc(ex2, ey2, eyeSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Vẽ hiệu ứng hạt khi ăn mồi
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.04;
+                if (p.alpha <= 0) {
+                    particles.splice(index, 1);
+                    return;
+                }
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+        }
+
+        // Lắng nghe phím bàn phím
+        window.addEventListener('keydown', e => {
+            if (!authModal.classList.contains('hidden')) return;
+
+            if (!isRunning && e.key.startsWith('Arrow')) {
+                startGame();
+                return;
+            }
+
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    if (dy === 0) { nextDx = 0; nextDy = -1; }
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    if (dy === 0) { nextDx = 0; nextDy = 1; }
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    if (dx === 0) { nextDx = -1; nextDy = 0; }
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    if (dx === 0) { nextDx = 1; nextDy = 0; }
+                    break;
+                case ' ':
+                    if (isRunning) togglePause();
+                    break;
+            }
+        });
+
+        // Điều khiển cảm ứng nút ảo trên màn hình
+        document.querySelectorAll('.control-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const dir = btn.getAttribute('data-dir');
+                if (!isRunning) startGame();
+                if (dir === 'UP' && dy === 0) { nextDx = 0; nextDy = -1; }
+                if (dir === 'DOWN' && dy === 0) { nextDx = 0; nextDy = 1; }
+                if (dir === 'LEFT' && dx === 0) { nextDx = -1; nextDy = 0; }
+                if (dir === 'RIGHT' && dx === 0) { nextDx = 1; nextDy = 0; }
+            });
+        });
+
+        actionBtn.addEventListener('click', () => {
+            if (isPaused) {
+                togglePause();
+            } else {
+                startGame();
+            }
+        });
+
+        startPauseBtn.addEventListener('click', () => {
+            if (isRunning) togglePause();
+            else startGame();
+        });
+
+        restartBtn.addEventListener('click', () => {
+            startGame();
+        });
+
+        // Vẽ màn hình khởi đầu tĩnh ban đầu
+        initGame();
+        draw();
+    </script>
+</body>
+</html>
